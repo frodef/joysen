@@ -264,28 +264,26 @@ but not in PROPERTIES-SCHEMA are encoded with the NIL schema."
 				  (with-json-index-trace (k)
 				    (encode v property-schema))))))))
 
-(defun json-object (plist &rest properties-schema &key &allow-other-keys)
-  "Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <sub-schema>]*,
-where each key corresponds to a PLIST indicator and identifies the
-sub-schema for that object property. Encoding follows
-PROPERTIES-SCHEMA. Entries in PLIST but not in PROPERTIES-SCHEMA are
-ignored. Entries in PROPERTIES-SCHEMA but not in PLIST are taken as
-NIL, with two specially-interpreted exceptions for the propertie's
-schema: JSON-OPTIONAL means a missing property is not encoded at all,
-while JSON-REQUIRED means a missing property is an error. A null PLIST
-is encoded as `\"null\"`."
+(defun json-getter-object (value getter &rest properties-schema &key &allow-other-keys)
+  "Format VALUE as a JSON object with PROPERTIES-SCHEMA [<property-name>
+<property-schema>]*, where each PROPERTY-NAME is looked up in VALUE by
+(GETTER <value> <property-name> <default>). The PROPERTY-SCHEMA
+identifies the sub-schema for that property value. Encoding follows
+the layout of PROPERTIES-SCHEMA. Entries in VALUE but not in
+PROPERTIES-SCHEMA are ignored. Values missing from VALUE are
+identified by GETTER returning the default value, and dealt with
+according to the property's schema: JSON-OPTIONAL means a missing
+property is not encoded at all, while JSON-REQUIRED means a missing
+property is an error. A null VALUE is encoded as `\"null\"`."
   (cond
-    ((not plist)
+    ((not value)
      "null")
-    (*json-implicit-mode*
-     ;; JSON-OBJECT makes no sense in implicit mode, because there is
-     ;; no schema layot to follow.
-     (apply #'json-object* plist properties-schema))
-    (t (with-json-encode-indentation (json plist "{" "}")
+    ((json-encode-assert (not *json-implicit-mode*)))
+    (t (with-json-encode-indentation (json value "{" "}")
 	 (format json "~{~C~A~C:~A~A~^,~/joysen:json-encode-newline/~:*~}"
 		 (loop with no-value = '#:missing-property
 		       for (key property-schema) on properties-schema by #'cddr
-		       for property-value = (getf plist key no-value)
+		       for property-value = (funcall getter value key no-value)
 		       nconc (flet ((property (value schema)
 				      (list *json-quote*
 					    (json-encode-keyword key)
@@ -294,14 +292,29 @@ is encoded as `\"null\"`."
 					    (with-json-index-trace (key)
 					      (encode value schema)))))
 			       (cond
-				 ((typep property-schema '(cons (eql json-optional)))
-				  (unless (eq property-value no-value)
-				    (property property-value (second property-schema))))
 				 ((not (eq property-value no-value))
 				  (property property-value property-schema))
-				 ((typep property-schema '(cons (eql json-required)))
-				  (json-encode-error "Required JSON property ~S missing from ~S" key plist))
+				 ((typep property-schema '(or (eql json-optional) (cons (eql json-optional))))
+				  nil)
+				 ((typep property-schema '(or (eql json-required) (cons (eql json-required))))
+				  (json-encode-error "Required JSON property ~S missing from ~S" key value))
 				 (t (property nil property-schema))))))))))
+
+(defun json-object (plist &rest properties-schema &key &allow-other-keys)
+  "Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <property-schema>]*,
+where each key corresponds to a PLIST indicator and identifies the
+sub-schema for that object property. Encoding follows
+PROPERTIES-SCHEMA. Entries in PLIST but not in PROPERTIES-SCHEMA are
+ignored. Entries in PROPERTIES-SCHEMA but not in PLIST are taken as
+NIL, with two specially-interpreted exceptions for the propertie's
+schema: JSON-OPTIONAL means a missing property is not encoded at all,
+while JSON-REQUIRED means a missing property is an error. A null PLIST
+is encoded as `\"null\"`."
+  (if *json-implicit-mode*
+      ;; JSON-OBJECT makes no sense in implicit mode, because there is
+      ;; no schema layout to follow.
+      (apply #'json-object* plist properties-schema)
+      (apply #'json-getter-object plist #'getf properties-schema)))
 
 (defun json-format (value format &rest format-args)
   "Explicitly FORMAT VALUE into a quoted string."
@@ -332,16 +345,21 @@ is encoded as `\"null\"`."
 
 (defun json-assert (value &optional schema)
   "Err if VALUE is NIL, otherwise proceed formatting VALUE by SCHEMA."
-  (assert value (value)
-	  "Missing required JSON value~@[: ~A~]."
-	  (format-json-trace))
+  (json-encode-assert (not *json-implicit-mode*))
+  (json-encode-assert (not (null value)) (value))
   (encode value schema))
 
 (defun json-optional (value schema)
   "An optional entry. This only makes sense in certain contexts,
 e.g. JSON-OBJECT."
-  (declare (ignore value schema))
-  (json-encode-error "~S cannot be used in this context" 'json-optional))
+  ;; Actual checking is done within e.g. JSON-OBJECT.
+  (encode value schema))
+
+(defun json-required (value schema)
+  "A required entry. This only makes sense in certain contexts,
+e.g. JSON-OBJECT."
+  ;; Actual checking is done within e.g. JSON-OBJECT.
+  (encode value schema))
 
 (defun format-json-trace (&optional (trace *json-encode-trace*))
   (when trace
