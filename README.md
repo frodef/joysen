@@ -51,7 +51,7 @@ and to give those a JSON representation.
 
 	> (princ
         (encode (list :bar "whatever"
-		              :foo 42)
+                      :foo 42)
                 '(json-object
                   :foo json-integer
                   :bar json-bool)
@@ -91,7 +91,7 @@ doesn't correspond to any particular lisp objects/values.
         (with-implicit-json (:keyword :camel)
           (json-object
             (list :bar (json-bool "whatever")
-			      :foo (json-integer 42)))))
+                  :foo (json-integer 42)))))
 	  
 Output:
 
