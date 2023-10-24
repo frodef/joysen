@@ -7,6 +7,7 @@
    #:encode
    #:json-object
    #:json-object*
+   #:json-getter-object
    #:json-array
    #:json-tuple
    #:json-integer
