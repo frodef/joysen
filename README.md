@@ -61,8 +61,15 @@ doesn't correspond to any particular lisp objects/values.
 	
 ### Example:
 
-	(with-implicit-json (:keyword :camel)
-      (json-object (list :foo-bar (json-integer 42))))
+	> (princ
+        (with-implicit-json (:keyword :camel)
+          (json-object (list :foo-bar (json-integer 42)))))
+	  
+Output:
+
+    {
+       "fooBar": 42
+    }
 
 Each example encodes a JSON 'object' with one slot `'fooBar'` that is
 to be encoded as an integer that happens to be 42.
