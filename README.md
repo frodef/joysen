@@ -44,8 +44,8 @@ and to give those a JSON representation.
     "42"
     > (joysen:encode 42 'json-decimal)
     "42.00"
-    > (joysen:encode 42 '(json-decimal 3)) ; optional precision parameter
-    "42.000"
+    > (joysen:encode 42 '(json-decimal 5)) ; optional precision parameter
+    "42.00000"
 
 ### Composite schema example:
 
@@ -102,13 +102,32 @@ never any object with a `foo-bar' value of value the integer 42.
 ### `defun json-object (plist &rest properties-schema &key &allow-other-keys)`
 
 Format `plist` as a JSON object with `properties-schema` `[<key>
-<sub-schema>]*`, where each key corresponds to a `plist` indicator and
-identifies the sub-schema for that object property. Encoding follows
-`properties-schema`. Entries in `plist` but not in `properties-schema`
-are ignored. Entries in `properties-schema` but not in `plist` are
-taken as NIL, with two special-case exceptions for the propertie's
-schema: `json-optional` means a missing property is not encoded at
-all, while `json-required` means a missing property is an error.
+<sub-schema>]*`, where each `key` corresponds to a `plist` indicator
+and identifies the sub-schema for that object property. Encoding
+follows `properties-schema`. Entries in `plist` but not in
+`properties-schema` are ignored. Entries in `properties-schema` but
+not in `plist` are taken as NIL, with two specially-interpreted
+exceptions for the propertie's schema: `json-optional` means a missing
+property is not encoded at all, while `json-required` means a missing
+property is an error. A null `plist` is encoded as `"null"`.
+
+### defun json-array (sequence &optional element-schema)
+
+A list or vector of elements with the same `element-schema` encoded as
+a JSON array."
+
+### defun json-decimal (value &optional (precision 2))
+
+Format `value` as a decimal with `precision`."
+
+### defun json-integer (value &optional min max)
+`value` is output as a basic integer (in decimal), optinally `min` and
+`max` are checked.."
+
+### defun json-string (value)
+
+`value` is printed into a string. The value `NIL` designates the empty
+string.
 
 ## License
 
