@@ -1,5 +1,5 @@
 # Joysen JSON encoding library for Common Lisp
-### Frode Fjeld <frodevf@gmail.com>
+### Frode Fjeld `<frodevf@gmail.com>`
 
 A mechanism for convenient encoding (nested) lisp objects into strings
 in JSON syntax.
@@ -61,22 +61,25 @@ Output:
     }
 
 In this example, the plist `(:foo-bar 42)` is the lisp value that is
-encoded according to the schema `(json-object :foo-bar json-integer)`.
+encoded according to the schema `(json-object :foo-bar
+json-integer)`. There can of course be more properties, also with
+composite schemas like more objects, arrays, etc.
 
 ## Implicit mode:
 
 A lisp form is used to construct JSON output directly. There is no
-explicit 'schema' object, rather the JSON mapping declarations are
-intertwined with the lisp forms that generate the values. That is, the
-JSON encoder functions are called as you normally would. The
-with-implicit-json macro will then prettify the resulting output.
+explicit 'schema' object, rather the JSON mapping declarations
+(i.e. function calls) are intertwined with the lisp code that generate
+the content. That is, the JSON encoder functions are called as you
+normally would, with no schema traversal. The `WITH-IMPLICIT-JSON`
+macro will then prettify the resulting output.
 
 Implicit mode is useful for generating one-off JSON syntax that
 doesn't correspond to any particular lisp objects/values.
 
 ### Usage:
 
-	(JOYSEN:WITH-IMPLICIT-JSON (<options>) <form>)
+	(JOYSEN:WITH-IMPLICIT-JSON ([keyword options]*) <forms>)
 	
 ### Example:
 
@@ -94,6 +97,18 @@ In this example, the `JSON-OBJECT` form will output the JSON object
 with the `fooBar` property. There are only ephemeral lisp values, and
 never any object with a `foo-bar' value of value the integer 42.
 
+## Encoder functions
+
+### `defun json-object (plist &rest properties-schema &key &allow-other-keys)`
+
+Format `plist` as a JSON object with `properties-schema` `[<key>
+<sub-schema>]*`, where each key corresponds to a `plist` indicator and
+identifies the sub-schema for that object property. Encoding follows
+`properties-schema`. Entries in `plist` but not in `properties-schema`
+are ignored. Entries in `properties-schema` but not in `plist` are
+taken as NIL, with two special-case exceptions for the propertie's
+schema: `json-optional` means a missing property is not encoded at
+all, while `json-required` means a missing property is an error.
 
 ## License
 
