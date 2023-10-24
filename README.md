@@ -50,20 +50,24 @@ and to give those a JSON representation.
 ### Composite schema example:
 
 	> (princ
-        (encode (list :foo-bar 42)
-               '(json-object :foo-bar json-integer)
+        (encode (list :bar "whatever"
+		              :foo 42)
+               '(json-object
+                  :foo json-integer
+                  :bar json-bool)
                :keyword :camel))
 
-Output:
+Output (notice ordering):
 
     {
-       "fooBar": 42
+        "foo": 42,
+        "bar": true
     }
 
-In this example, the plist `(:foo-bar 42)` is the lisp value that is
-encoded according to the schema `(json-object :foo-bar
-json-integer)`. There can of course be more properties, also with
-composite schemas like more objects, arrays, etc.
+In this example, the plist `(:bar "whatever":foo 42)` is the lisp
+value that is encoded according to the schema `(json-object :foo
+json-integer :bar json-bool)`. The schema can be nested to arbitrary
+depth.
 
 ## Implicit mode:
 
@@ -85,17 +89,21 @@ doesn't correspond to any particular lisp objects/values.
 
 	> (princ
         (with-implicit-json (:keyword :camel)
-          (json-object (list :foo-bar (json-integer 42)))))
+          (json-object
+            (list :bar (json-bool "whatever")
+			      :foo (json-integer 42)))))
 	  
 Output:
 
     {
-       "fooBar": 42
+        "bar": true
+        "foo": 42,
     }
 
-In this example, the `JSON-OBJECT` form will output the JSON object
-with the `fooBar` property. There are only ephemeral lisp values, and
-never any object with a `foo-bar' value of value the integer 42.
+In this example, the `json-object` form will output the JSON object
+with the `foo` and `bar` properties, in the order given. There are
+only ephemeral lisp values, and e.g. never any object with a `foo`
+value being the integer 42.
 
 ## Encoder functions
 
