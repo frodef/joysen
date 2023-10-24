@@ -43,13 +43,16 @@ and to give those a JSON representation.
 	> (princ
         (encode (list :foo-bar 42)
                '(json-object :foo-bar json-integer)
-                             :keyword :camel))
+               :keyword :camel))
 
 Output:
 
     {
        "fooBar": 42
     }
+
+In this example, the plist `(:foo-bar 42)` is the lisp value that is
+encoded according to the schema `(json-object :foo-bar json-integer)`.
 
 ## Implicit mode:
 
@@ -78,8 +81,9 @@ Output:
        "fooBar": 42
     }
 
-Each example encodes a JSON 'object' with one slot `'fooBar'` that is
-to be encoded as an integer that happens to be 42.
+In this example, the `JSON-OBJECT` form will output the JSON object
+with the `fooBar` property. There are only ephemeral lisp values, and
+never any object with a `foo-bar' value of value the integer 42.
 
 
 ## License
