@@ -40,9 +40,16 @@ and to give those a JSON representation.
   
 ### Example:
 
-	(encode (list :foo-bar 42)
-            '(json-object :foo-bar json-integer)
-                          :keyword :camel)
+	> (princ
+        (encode (list :foo-bar 42)
+               '(json-object :foo-bar json-integer)
+                             :keyword :camel))
+
+Output:
+
+    {
+       "fooBar": 42
+    }
 
 ## Implicit mode:
 
