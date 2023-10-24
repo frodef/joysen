@@ -114,11 +114,11 @@ property is an error. A null `plist` is encoded as `"null"`.
 ### `defun json-array (sequence &optional element-schema)`
 
 A list or vector of elements with the same `element-schema` encoded as
-a JSON array."
+a JSON array.
 
 ### `defun json-decimal (value &optional (precision 2))`
 
-Format `value` as a decimal with `precision`."
+Format `value` as a decimal with `precision`.
 
 ### `defun json-integer (value &optional min max)`
 `value` is output as a basic integer (in decimal), optinally `min` and
@@ -129,6 +129,15 @@ Format `value` as a decimal with `precision`."
 `value` is printed into a string. The value `NIL` designates the empty
 string.
 
+### `defun json-dict (plist &optional element-schema)`
+
+This is essentially the same as an JSON-OBJECT, except the keys are
+exact strings, the keys are arbitrary (not to any schema) and all the
+values are formatted to the optional ELEMENT-SCHEMA.
+
+### `defun json-bool (value)`
+True if VALUE is non-NIL, otherwise false.
+  
 ## License
 
 Unlicense
