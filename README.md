@@ -111,20 +111,20 @@ exceptions for the propertie's schema: `json-optional` means a missing
 property is not encoded at all, while `json-required` means a missing
 property is an error. A null `plist` is encoded as `"null"`.
 
-### defun json-array (sequence &optional element-schema)
+### `defun json-array (sequence &optional element-schema)`
 
 A list or vector of elements with the same `element-schema` encoded as
 a JSON array."
 
-### defun json-decimal (value &optional (precision 2))
+### `defun json-decimal (value &optional (precision 2))`
 
 Format `value` as a decimal with `precision`."
 
-### defun json-integer (value &optional min max)
+### `defun json-integer (value &optional min max)`
 `value` is output as a basic integer (in decimal), optinally `min` and
 `max` are checked.."
 
-### defun json-string (value)
+### `defun json-string (value)`
 
 `value` is printed into a string. The value `NIL` designates the empty
 string.
