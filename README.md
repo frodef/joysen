@@ -40,11 +40,11 @@ and to give those a JSON representation.
   
 ### Basic examples:
 
-    > (joysen:encode 42 'json-integer) ; basic schema
+    > (encode 42 'json-integer) ; basic schema
     "42"
-    > (joysen:encode 42 'json-decimal) ; same value, different schema
+    > (encode 42 'json-decimal) ; same value, different schema
     "42.00"
-    > (joysen:encode 42 '(json-decimal 5)) ; optional precision parameter
+    > (encode 42 '(json-decimal 5)) ; optional precision parameter
     "42.00000"
 
 ### Composite schema example:
