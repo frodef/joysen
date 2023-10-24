@@ -52,7 +52,7 @@ and to give those a JSON representation.
 	> (princ
         (encode (list :bar "whatever"
 		              :foo 42)
-               '(json-object
+                '(json-object
                   :foo json-integer
                   :bar json-bool)
                :keyword :camel))
