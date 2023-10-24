@@ -245,54 +245,63 @@ mode. Any character that won't otherwise exist in the output.")
 		  (loop repeat (json-current-indent) do (write-char #\space output)))
 		 (t (write-char c output))))))
 
-(defun json-object* (plist &rest schema &key &allow-other-keys)
-  "Format PLIST into a JSON object according to SCHEMA, camelizing each
-key. Keys follow ordering and presence in PLIST (unused entries in
-SCHEMA are ignored, entries in PLIST not in SCHEMA are attempted
-written as simple values)."
+(defun json-object* (plist &rest properties-schema &key &allow-other-keys)
+"Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <sub-schema>]*,
+where each key corresponds to a PLIST indicator and identifies the
+sub-schema for that object property. Encoding follows PLIST. Entries
+in PROPERTIES-SCHEMA but not in PLIST are ignored. Entries in PLIST
+but not in PROPERTIES-SCHEMA are encoded with the NIL schema."
   (if (not plist)
       "null"
       (with-json-encode-indentation (json plist "{" "}")
-	(format json "~{~C~A~C:~A~A~^,~:/bancal:json-encode-newline/~:*~}"
+	(format json "~{~C~A~C:~A~A~^,~:/joysen:json-encode-newline/~:*~}"
 		(loop for (k v) on plist by #'cddr
-		      for element-schema = (getf schema k)
-		      for element = (encode v element-schema)
-		      when element
-			nconc (list *json-quote*
-				    (json-encode-keyword k)
-				    *json-quote*
-				    (json-encode-space)
-				    (with-json-index-trace (k)
-				      (encode v element-schema))))))))
+		      for property-schema = (getf properties-schema k)
+		      nconc (list *json-quote*
+				  (json-encode-keyword k)
+				  *json-quote*
+				  (json-encode-space)
+				  (with-json-index-trace (k)
+				    (encode v property-schema))))))))
 
 (defun json-object (plist &rest properties-schema &key &allow-other-keys)
   "Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <sub-schema>]*,
 where each key corresponds to a PLIST indicator and identifies the
-sub-schema for that object property. Formatting follows the exact
-ordering of PROPERTIES-SCHEMA. Entries in PLIST but not in
-PROPERTIES-SCHEMA are ignored."
+sub-schema for that object property. Encoding follows
+PROPERTIES-SCHEMA. Entries in PLIST but not in PROPERTIES-SCHEMA are
+ignored. Entries in PROPERTIES-SCHEMA but not in PLIST are taken as
+NIL, with two specially-interpreted exceptions for the propertie's
+schema: JSON-OPTIONAL means a missing property is not encoded at all,
+while JSON-REQUIRED means a missing property is an error. A null PLIST
+is encoded as `\"null\"`."
   (cond
     ((not plist)
      "null")
     (*json-implicit-mode*
-     ;; JSON-OBJECT makes no sense in implicit mode.
+     ;; JSON-OBJECT makes no sense in implicit mode, because there is
+     ;; no schema layot to follow.
      (apply #'json-object* plist properties-schema))
     (t (with-json-encode-indentation (json plist "{" "}")
-	 (format json "~{~C~A~C:~A~A~^,~/bancal:json-encode-newline/~:*~}"
-		 (loop with no-value = '#:no-value
-		       for (key sub-schema) on properties-schema by #'cddr
-		       for optional-p = (typep sub-schema '(cons (eql json-optional)))
-		       for property-value = (getf plist key (if optional-p no-value nil))
-		       for sub-schema* = (if optional-p
-					     (second sub-schema)
-					     sub-schema)
-		       nconc (unless (eq property-value no-value)
-			       (list *json-quote*
-				     (json-encode-keyword key)
-				     *json-quote*
-				     (json-encode-space)
-				     (with-json-index-trace (key)
-				       (encode property-value sub-schema*))))))))))
+	 (format json "~{~C~A~C:~A~A~^,~/joysen:json-encode-newline/~:*~}"
+		 (loop with no-value = '#:missing-property
+		       for (key property-schema) on properties-schema by #'cddr
+		       for property-value = (getf plist key no-value)
+		       nconc (flet ((property (value schema)
+				      (list *json-quote*
+					    (json-encode-keyword key)
+					    *json-quote*
+					    (json-encode-space)
+					    (with-json-index-trace (key)
+					      (encode value schema)))))
+			       (cond
+				 ((typep property-schema '(cons (eql json-optional)))
+				  (unless (eq property-value no-value)
+				    (property property-value (second property-schema))))
+				 ((not (eq property-value no-value))
+				  (property property-value property-schema))
+				 ((typep property-schema '(cons (eql json-required)))
+				  (json-encode-error "Required JSON property ~S missing from ~S" key plist))
+				 (t (property nil property-schema))))))))))
 
 (defun json-format (value format &rest format-args)
   "Explicitly FORMAT VALUE into a quoted string."
@@ -341,15 +350,15 @@ e.g. JSON-OBJECT."
 	  (*print-escape* t))
       (format nil "~{~W[~S]~^ -> ~}" (reverse trace)))))
 
-(defun json-dict (value &optional element-schema)
+(defun json-dict (plist &optional element-schema)
   "This is essentially the same as an JSON-OBJECT, except the keys are
 exact strings, the keys are arbitrary (not to any schema) and all the
 values are formatted to the optional ELEMENT-SCHEMA."
-  (if (null value)
+  (if (null plist)
       "{}"
-      (with-json-encode-indentation (json value "{" "}")
-	(format json "~{~C~A~C: ~A~^,~/bancal:json-encode-newline/~:*~}"
-		(loop for (k v) on (bob:plist value) by #'cddr
+      (with-json-encode-indentation (json plist "{" "}")
+	(format json "~{~C~A~C: ~A~^,~/joysen:json-encode-newline/~:*~}"
+		(loop for (k v) on plist by #'cddr
 		      collect *json-quote*
 		      collect (string k)
 		      collect *json-quote*
@@ -361,17 +370,19 @@ values are formatted to the optional ELEMENT-SCHEMA."
   (if value "true" "false"))
 
 (defun json-string (value)
-  "VALUE formatted as a string, or NIL designating the empty string."
+  "VALUE is printed into a string. The value NIL designates the empty
+string."
   (format nil "~C~A~C" *json-quote* (or value "") *json-quote*))
 
 (defun json-decimal (value &optional (precision 2))
-  "Format VALUE as a decimal."
+  "Format VALUE as a decimal with PRECISION."
   (check-type value real)
   (if (zerop precision)
       (format nil "~D" (round value))
       (format nil "~,vF" precision value)))
 
 (defun json-integer (value &optional min max)
+  "VALUE is output as a basic integer."
   (json-encode-assert (typep value 'integer))
   (when min
     (json-encode-assert (<= min value)))
@@ -379,21 +390,22 @@ values are formatted to the optional ELEMENT-SCHEMA."
     (json-encode-assert (<= value max)))
   (format nil "~D" value))
 
-(defun json-array (value &optional element-type)
-  "A list of elements with the same ELEMENT-TYPE."
-  (if (zerop (length value))
+(defun json-array (sequence &optional element-schema)
+  "A list or vector of elements with the same ELEMENT-SCHEMA."
+  (json-encode-assert (typep sequence 'sequence) (sequence))
+  (if (zerop (length sequence))
       "[]"
-      (with-json-encode-indentation (json value "[" "]")
-	(format json "~{~A~^,~/bancal:json-encode-newline/~:*~}"
-		(etypecase value
+      (with-json-encode-indentation (json sequence "[" "]")
+	(format json "~{~A~^,~/joysen:json-encode-newline/~:*~}"
+		(etypecase sequence
 		  (list
-		   (loop for x in value for index upfrom 0
+		   (loop for x in sequence for index upfrom 0
 			 collect (with-json-index-trace (index)
-				   (encode x element-type))))
+				   (encode x element-schema))))
 		  (vector
-		   (loop for x across value for index upfrom 0
+		   (loop for x across sequence for index upfrom 0
 			 collect (with-json-index-trace (index)
-				   (encode x element-type)))))))))
+				   (encode x element-schema)))))))))
 
 (defun json-tuple (value &rest element-schemas)
   "An ordered list of elements with different ELEMENT-TYPEs."
@@ -404,7 +416,7 @@ values are formatted to the optional ELEMENT-SCHEMA."
     ((/= (length value) (length element-schemas))
      (json-encode-error "JSON tuple size schema ~S mismatch: ~S" element-schemas value))
     (t (with-json-encode-indentation (json value "[" "]")
-	 (format json "~{~A~^,~/bancal:json-encode-newline/~:*~}"
+	 (format json "~{~A~^,~/joysen:json-encode-newline/~:*~}"
 		 (loop for x in value for element-schema in element-schemas for index upfrom 0
 		       collect (with-json-index-trace (index)
 				 (encode x element-schema))))))))
