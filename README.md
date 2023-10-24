@@ -38,7 +38,16 @@ and to give those a JSON representation.
 
 	(JOYSEN:ENCODE <value> <schema>)
   
-### Example:
+### Basic examples:
+
+    > (joysen:encode 42 'json-integer)
+    "42"
+    > (joysen:encode 42 'json-decimal)
+    "42.00"
+    > (joysen:encode 42 '(json-decimal 3)) ; optional precision parameter
+    "42.000"
+
+### Composite schema example:
 
 	> (princ
         (encode (list :foo-bar 42)
