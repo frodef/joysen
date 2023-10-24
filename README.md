@@ -9,8 +9,8 @@ This library operates in two modes: *Normal* or *Implicit* mode.
 ## Normal (explicit) mode:
 
 Encoding happens by the (lisp) value and a schema as two separate
-entities, as provided to JOYSEN:ENCODE. The value is an arbitrary lisp
-object, and the schema (a list tree structure) describes how that
+entities, as provided to `JOYSEN:ENCODE`. The value is an arbitrary
+lisp object, and the schema (a list tree structure) describes how that
 value is mapped to JSON syntax. The lisp value and the schema are
 traversed in parallell while generating JSON output.
 
