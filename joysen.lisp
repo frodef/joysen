@@ -89,7 +89,7 @@ unreadable.")
   "The string used as space between index and value. T denotes a single
 space, NIL denotes no space.")
 
-(defvar *json-null-schema*
+(defvar *json-default-schema*
   '((string json-string)
     (integer json-integer)
     (real json-decimal))
@@ -147,14 +147,19 @@ mode. Any character that won't otherwise exist in the output.")
 (define-condition json-unknown-value (error)
   ((value
     :initarg :value
-    :reader json-unknown-value)))
+    :reader json-unknown-value)
+   (schema
+    :initarg :schema
+    :initform nil
+    :reader json-unknown-value-schema)))
 
 (defmethod print-object ((object json-unknown-value) stream)
   (if *json-implicit-mode*
       (format stream "No implicit JSON encoding of value ~S."
 	      (json-unknown-value object))
-      (format stream "Unable to encode value ~S in current schema~@[: ~A~]"
+      (format stream "Unable to encode value ~S in current schema ~S~@[: ~A~]"
 	      (json-unknown-value object)
+	      (json-unknown-value-schema object)
 	      (format-json-trace)))
   object)
 
@@ -273,7 +278,7 @@ with the NIL schema."
 				  *json-quote*
 				  (json-encode-space)
 				  (with-json-index-trace (k)
-				    (encode v property-schema))))))))
+				    (encode v :schema property-schema))))))))
 
 (defun json-getter-object (value getter &rest properties-schema &key &allow-other-keys)
   "Format VALUE as a JSON object with PROPERTIES-SCHEMA [<property-name>
@@ -301,7 +306,7 @@ property is an error. A null VALUE is encoded as `\"null\"`."
 					    *json-quote*
 					    (json-encode-space)
 					    (with-json-index-trace (key)
-					      (encode value schema)))))
+					      (encode value :schema schema)))))
 			       (cond
 				 ((not (eq property-value no-value))
 				  (property property-value property-schema))
@@ -345,10 +350,10 @@ is encoded as `\"null\"`."
   "Apply FUNCTION to VALUE, then format the result by SCHEMA."
   (etypecase function
     ((or function symbol)
-     (encode (funcall function value) schema))
+     (encode (funcall function value) :schema schema))
     ((cons symbol)
      (encode (apply (car function) value (cdr function))
-	     schema))))
+	     :schema schema))))
 
 (defun json-yield (discard-value value)
   (declare (ignore discard-value))
@@ -358,19 +363,19 @@ is encoded as `\"null\"`."
   "Err if VALUE is NIL, otherwise proceed formatting VALUE by SCHEMA."
   (json-encode-assert (not *json-implicit-mode*))
   (json-encode-assert (not (null value)) (value))
-  (encode value schema))
+  (encode value :schema schema))
 
 (defun json-optional (value schema)
   "An optional entry. This only makes sense in certain contexts,
 e.g. JSON-OBJECT."
   ;; Actual checking is done within e.g. JSON-OBJECT.
-  (encode value schema))
+  (encode value :schema schema))
 
 (defun json-required (value schema)
   "A required entry. This only makes sense in certain contexts,
 e.g. JSON-OBJECT."
   ;; Actual checking is done within e.g. JSON-OBJECT.
-  (encode value schema))
+  (encode value :schema schema))
 
 (defun format-json-trace (&optional (trace *json-encode-trace*))
   (when trace
@@ -392,7 +397,7 @@ values are formatted to the optional ELEMENT-SCHEMA."
 		      collect (string k)
 		      collect *json-quote*
 		      collect (with-json-index-trace (k)
-				(encode v element-schema)))))))
+				(encode v :schema element-schema)))))))
 
 (defun json-bool (value)
   "True if VALUE is non-NIL."
@@ -430,11 +435,11 @@ string."
 		  (list
 		   (loop for x in sequence for index upfrom 0
 			 collect (with-json-index-trace (index)
-				   (encode x element-schema))))
+				   (encode x :schema element-schema))))
 		  (vector
 		   (loop for x across sequence for index upfrom 0
 			 collect (with-json-index-trace (index)
-				   (encode x element-schema)))))))))
+				   (encode x :schema element-schema)))))))))
 
 (defun json-tuple (value &rest element-schemas)
   "An ordered list of elements with different ELEMENT-TYPEs."
@@ -448,11 +453,12 @@ string."
 	 (format json "~{~A~^,~/joysen:json-encode-newline/~:*~}"
 		 (loop for x in value for element-schema in element-schemas for index upfrom 0
 		       collect (with-json-index-trace (index)
-				 (encode x element-schema))))))))
+				 (encode x :schema element-schema))))))))
 
-(defun encode (value schema &key ((:keyword *json-keyword-mode*) *json-keyword-mode*)
-			      ((:indent *json-indent*) *json-indent*)
-			      ((:null-schema *json-null-schema*) *json-null-schema*))
+(defun encode (value &key schema
+		       ((:keyword *json-keyword-mode*) *json-keyword-mode*)
+		       ((:indent *json-indent*) *json-indent*)
+		       ((:default-schema *json-default-schema*) *json-default-schema*))
   "This is the main entry-point for encoding VALUE into a JSON string
 according to SCHEMA."
   (etypecase schema
@@ -462,10 +468,12 @@ according to SCHEMA."
 	      ;; encoded at this point.
 	      (stringp value))
 	 value
-	 (loop for (match-type schema-by-type) in *json-null-schema*
-	       when (typep value match-type)
-		 return (encode value schema-by-type)
-	       finally (error 'json-unknown-value :value value))))
+	 (loop for (match-type schema-by-type) in *json-default-schema*
+	       when (and (typep value match-type)
+			 ;; Avoid infinite recursion...
+			 schema-by-type)
+		 return (encode value :schema schema-by-type)
+	       finally (error 'json-unknown-value :value value :schema schema))))
     (symbol
      (funcall schema value))
     (list
