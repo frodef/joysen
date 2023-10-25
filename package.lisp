@@ -22,4 +22,5 @@
    #:*json-keyword-mode*
    #:*json-keyword-function*
    #:*json-quote*
-   #:*json-space*))
+   #:*json-space*
+   #:*json-default-schema*))
