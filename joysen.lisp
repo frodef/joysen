@@ -89,6 +89,16 @@ unreadable.")
   "The string used as space between index and value. T denotes a single
 space, NIL denotes no space.")
 
+(defvar *json-null-schema*
+  '((string json-string)
+    (integer json-integer)
+    (real json-decimal))
+  "In explicit mode: The schema ([(type schema)]*) to use by
+JOYSEN:ENCODE when a NIL schema is provided.
+
+In implicit mode: Any non-string value encountered is encoded by the
+value's type as specified here.")
+
 (defparameter %json-implicit-indent-marker% (code-char #x4242)
   "Internal marker character used for encoding indentation in implicit
 mode. Any character that won't otherwise exist in the output.")
@@ -248,9 +258,10 @@ mode. Any character that won't otherwise exist in the output.")
 (defun json-object* (plist &rest properties-schema &key &allow-other-keys)
 "Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <sub-schema>]*,
 where each key corresponds to a PLIST indicator and identifies the
-sub-schema for that object property. Encoding follows PLIST. Entries
-in PROPERTIES-SCHEMA but not in PLIST are ignored. Entries in PLIST
-but not in PROPERTIES-SCHEMA are encoded with the NIL schema."
+sub-schema for that object property. Encoding follows the layout of
+PLIST. Entries in PROPERTIES-SCHEMA but not in PLIST are
+ignored. Entries in PLIST but not in PROPERTIES-SCHEMA are encoded
+with the NIL schema."
   (if (not plist)
       "null"
       (with-json-encode-indentation (json plist "{" "}")
@@ -440,27 +451,21 @@ string."
 				 (encode x element-schema))))))))
 
 (defun encode (value schema &key ((:keyword *json-keyword-mode*) *json-keyword-mode*)
-			      ((:indent *json-indent*) *json-indent*))
+			      ((:indent *json-indent*) *json-indent*)
+			      ((:null-schema *json-null-schema*) *json-null-schema*))
   "This is the main entry-point for encoding VALUE into a JSON string
 according to SCHEMA."
   (etypecase schema
     (null
-     (cond
-       (*json-implicit-mode*
-	(unless (typep value '(or string integer))
-	  (error 'json-unknown-value :value value))
-	 value)
-       ((not *json-implicit-mode*)
-	(typecase value
-	   (string
-	    (json-string value))
-	   (integer
-	    (json-integer value))
-	   (real
-	    (json-decimal value))
-	   (t (error 'json-unknown-value :value value))))))
-    ((eql ignore)
-     #| skip |#)
+     (if (and *json-implicit-mode*
+	      ;; Implicit mode means the value should already be
+	      ;; encoded at this point.
+	      (stringp value))
+	 value
+	 (loop for (match-type schema-by-type) in *json-null-schema*
+	       when (typep value match-type)
+		 return (encode value schema-by-type)
+	       finally (error 'json-unknown-value :value value))))
     (symbol
      (funcall schema value))
     (list
