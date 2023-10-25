@@ -1,31 +1,32 @@
 # Joysen JSON encoding library for Common Lisp
 ### Frode Fjeld `<frodevf@gmail.com>`
 
-A mechanism for convenient encoding (nested) lisp objects into strings
-in JSON syntax.
+A mechanism for flexible and composable encoding of (nested) lisp
+values into strings in JSON syntax.
 
-This library operates in two modes: *Normal* or *Implicit* mode.
+This library operates in one of two modes: *Normal* or *Implicit*
+mode.
 
 ## Normal (explicit) mode:
 
 Encoding happens by the (lisp) value and a schema as two separate
-entities, as provided to `JOYSEN:ENCODE`. The value is an arbitrary
-lisp object, and the schema (a list tree structure) describes how that
+entities, as provided to `JOYSEN:ENCODE`. The value is any lisp
+object, and the schema (a list tree structure) describes how that
 value is mapped to JSON syntax. The lisp value and the schema are
 traversed in parallell while generating JSON output.
 
 The schema object is a (lisp list) tree structure where the nodes name
 JSON encoder functions that map a lisp value to a (JSON) string. Each
 such function takes (implicitly) the lisp value as its first argument,
-and optionally more parameters. In the schema, an encoder function is
-named either by its symbol (which is applied to a single argument: the
-lisp value) or it is named by a list `(<symbol> <args*>)`, in which
-case the symbol is applied to the lisp value and the provided
-ARGS. The ARGS can hold further sub-schemas, thus creating the tree
-structure.
+and optionally more parameters. In the schema tree, an encoder
+function is named either by its symbol (which is applied to a single
+argument: the lisp value) or it is named by a list `(<symbol>
+<arg>*)`, in which case the symbol is applied to the lisp value and
+the provided ARGS. The ARGS can hold further sub-schemas, thus
+creating the tree structure.
 
 The Joysen library provides encoder functions for typical mappings,
-e.g. integers `(joysen:json-integer)`, plists to 'objects'
+e.g. integers `(joysen:json-integer)`, plists to JSON 'objects'
 `(joysen:json-object)`, lists or vectors to arrays
 `(joysen:json-array)`, etc. However you can easily provide and use
 your own encoder functions that map your objects either to calls to
@@ -49,15 +50,15 @@ and to give those a JSON representation.
 
 ### Composite schema example:
 
+    > (defparameter *example* (list :bar 'whatever :foo 42))
 	> (princ
-        (encode (list :bar "whatever"
-                      :foo 42)
+        (encode *example*
                 '(json-object
                   :foo json-integer
                   :bar json-bool)
                :keyword :camel))
 
-Output (notice ordering):
+Output (notice ordering wrt. schema):
 
     {
         "foo": 42,
@@ -90,8 +91,8 @@ doesn't correspond to any particular lisp objects/values.
 	> (princ
         (with-implicit-json (:keyword :camel)
           (json-object
-            (list :bar (json-bool "whatever")
-                  :foo (json-integer 42)))))
+            (list :bar (getf *example* :bar)
+                  :foo (getf *example* :foo)))))
 	  
 Output:
 
@@ -101,9 +102,8 @@ Output:
     }
 
 In this example, the `json-object` form will output the JSON object
-with the `foo` and `bar` properties, in the order given. There are
-only ephemeral lisp values, and e.g. never any object with a `foo`
-value being the integer 42.
+according to the layout given by its argument, e.g. the result of the
+`list` form.
 
 ## Encoder functions
 
@@ -134,8 +134,8 @@ Format `value` as a decimal with `precision`.
 
 ### `defun json-string (value)`
 
-`value` is printed into a string. The value `NIL` designates the empty
-string.
+`value` is printed into a quoted string. The value `NIL` designates
+the empty string.
 
 ### `defun json-dict (plist &optional element-schema)`
 
