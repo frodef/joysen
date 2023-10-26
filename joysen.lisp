@@ -273,12 +273,13 @@ with the NIL schema."
 	(format json "~{~C~A~C:~A~A~^,~:/joysen:json-encode-newline/~:*~}"
 		(loop for (k v) on plist by #'cddr
 		      for property-schema = (getf properties-schema k)
-		      nconc (list *json-quote*
-				  (json-encode-keyword k)
-				  *json-quote*
-				  (json-encode-space)
-				  (with-json-index-trace (k)
-				    (encode v :schema property-schema))))))))
+		      unless (eq property-schema 'ignore)
+			nconc (list *json-quote*
+				    (json-encode-keyword k)
+				    *json-quote*
+				    (json-encode-space)
+				    (with-json-index-trace (k)
+				      (encode v :schema property-schema))))))))
 
 (defun json-getter-object (value getter &rest properties-schema &key &allow-other-keys)
   "Format VALUE as a JSON object with PROPERTIES-SCHEMA [<property-name>
