@@ -67,7 +67,7 @@ Output (notice ordering wrt. schema):
         "bar": true
     }
 
-In this example, the plist `(:bar "whatever":foo 42)` is the lisp
+In this example, the plist `(:bar whatever :foo 42)` is the lisp
 value that is encoded according to the schema `(json-object :foo
 json-integer :bar json-bool)`. Notice that the `bar` property is
 mapped to a JSON boolean based on the schema, meaning its lisp value
@@ -81,7 +81,7 @@ an array of the individual characters in the symbol's name:
 
 	> (princ
 	    (encode 'hello
-		        :schema '(json-map string (json-array json-string)))
+                :schema '(json-map string (json-array json-string)))
 
 Output:
 
