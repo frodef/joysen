@@ -37,26 +37,28 @@ and to give those a JSON representation.
 
 ### Usage:
 
-	(JOYSEN:ENCODE <value> <schema>)
+	(JOYSEN:ENCODE <value> :schema <schema>)
   
 ### Basic examples:
 
-    > (encode 42 'json-integer) ; basic schema
+    > (encode 42 :schema 'json-integer) ; basic schema
     "42"
-    > (encode 42 'json-decimal) ; same value, different schema
+    > (encode 42 :schema 'json-decimal) ; same value, different schema
     "42.00"
-    > (encode 42 '(json-decimal 5)) ; optional precision parameter
+    > (encode 42 :schema '(json-decimal 5)) ; optional precision parameter
     "42.00000"
+	> (joysen:encode 42) ; A NULL schema denotes a (configurable) mapping...
+	"42"                 ; ...the default will map integers to JSON-INTEGER.
 
 ### Composite schema example:
 
     > (defparameter *example* (list :bar 'whatever :foo 42))
 	> (princ
         (encode *example*
-                '(json-object
-                  :foo json-integer
-                  :bar json-bool)
-               :keyword :camel))
+                :schema '(json-object
+                          :foo json-integer
+                          :bar json-bool)
+                          :keyword :camel))
 
 Output (notice ordering wrt. schema):
 
@@ -67,8 +69,33 @@ Output (notice ordering wrt. schema):
 
 In this example, the plist `(:bar "whatever":foo 42)` is the lisp
 value that is encoded according to the schema `(json-object :foo
-json-integer :bar json-bool)`. The schema can be nested to arbitrary
-depth.
+json-integer :bar json-bool)`. Notice that the `bar` property is
+mapped to a JSON boolean based on the schema, meaning its lisp value
+is only relevant in terms of its boolean status: Only `NIL` would
+yield a JSON output of `false`.
+
+The schema (and lisp value) can be nested to arbitrary depth. In fact,
+the schema is a fairly expressive language. For example, this is an
+example where the schema specifies that a symbol should be encoded as
+an array of the individual characters in the symbol's name:
+
+	> (princ
+	    (encode 'hello
+		        :schema '(json-map string (json-array json-string)))
+
+Output:
+
+    [
+        "H",
+        "E",
+        "L",
+        "L",
+        "O"
+    ]
+
+Here, first the symbol `HELLO` is mapped through the function
+`CL:STRING`. Then the array takes a `CL:SEQUENCE` (i.e. the symbol's
+name) and applies the `json-string` encoder to each element.
 
 ## Implicit mode:
 
@@ -92,13 +119,13 @@ doesn't correspond to any particular lisp objects/values.
         (with-implicit-json (:keyword :camel)
           (json-object
             (list :bar (getf *example* :bar)
-                  :foo (getf *example* :foo)))))
+                  :foo-zap (getf *example* :foo)))))
 	  
 Output:
 
     {
         "bar": true
-        "foo": 42,
+        "fooZap": 42,
     }
 
 In this example, the `json-object` form will output the JSON object
