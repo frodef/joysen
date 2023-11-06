@@ -99,6 +99,8 @@ JOYSEN:ENCODE when a NIL schema is provided.
 In implicit mode: Any non-string value encountered is encoded by the
 value's type as specified here.")
 
+(defparameter *ignore-entry* '#:joysen-ignore-entry)
+
 (defparameter %json-implicit-indent-marker% (code-char #x4242)
   "Internal marker character used for encoding indentation in implicit
 mode. Any character that won't otherwise exist in the output.")
@@ -261,7 +263,7 @@ mode. Any character that won't otherwise exist in the output.")
 		 (t (write-char c output))))))
 
 (defun json-object* (plist &rest properties-schema &key &allow-other-keys)
-"Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <sub-schema>]*,
+  "Format PLIST as a JSON object with PROPERTIES-SCHEMA [<key> <sub-schema>]*,
 where each key corresponds to a PLIST indicator and identifies the
 sub-schema for that object property. Encoding follows the layout of
 PLIST. Entries in PROPERTIES-SCHEMA but not in PLIST are
@@ -273,7 +275,8 @@ with the NIL schema."
 	(format json "~{~C~A~C:~A~A~^,~:/joysen:json-encode-newline/~:*~}"
 		(loop for (k v) on plist by #'cddr
 		      for property-schema = (getf properties-schema k)
-		      unless (eq property-schema 'ignore)
+		      unless (or (eq property-schema 'ignore)
+				 (eq v *ignore-entry*))
 			nconc (list *json-quote*
 				    (json-encode-keyword k)
 				    *json-quote*
@@ -343,9 +346,22 @@ is encoded as `\"null\"`."
 
 (defun json-choice (value first-choice &rest more-choices)
   "VALUE must be a string matching one of CHOICES."
-  (let ((choices (list* first-choice more-choices)))
-    (json-string (or (find value choices :test #'string-equal)
-		     (json-encode-error "JSON bad choice ~S between ~{~S~^, ~}" value choices)))))
+  (if (eq value *ignore-entry*)
+      value
+      (let ((choices (list* first-choice more-choices)))
+	(json-string (or (find value choices :test #'string-equal)
+			 (json-encode-error "JSON bad choice ~S between ~{~S~^, ~}" value choices))))))
+
+(defun json-choice* (value first-choice &rest more-choices)
+  "VALUE is a string matching one of CHOICES, or NIL indicating the default FIRST-CHOICE."
+  (cond
+    ((eq value *ignore-entry*)
+     value)
+    ((null value)
+     (json-string first-choice))
+    (t (let ((choices (list* first-choice more-choices)))
+	 (json-string (or (find value choices :test #'string-equal)
+			  (json-encode-error "JSON bad choice ~S between ~{~S~^, ~}" value choices)))))))
 
 (defun json-map (value function schema)
   "Apply FUNCTION to VALUE, then format the result by SCHEMA."
@@ -411,7 +427,7 @@ string."
 
 (defun json-decimal (value &optional (precision 2))
   "Format VALUE as a decimal with PRECISION."
-  (check-type value real)
+  (json-encode-assert (typep value 'real))
   (if (zerop precision)
       (format nil "~D" (round value))
       (format nil "~,vF" precision value)))
@@ -457,9 +473,11 @@ string."
 				 (encode x :schema element-schema))))))))
 
 (defun encode (value &key schema
+		       test-p
 		       ((:keyword *json-keyword-mode*) *json-keyword-mode*)
 		       ((:indent *json-indent*) *json-indent*)
-		       ((:default-schema *json-default-schema*) *json-default-schema*))
+		       ((:default-schema *json-default-schema*) *json-default-schema*)
+		       ((:quote-char *json-quote*) (if test-p #\' *json-quote*)))
   "This is the main entry-point for encoding VALUE into a JSON string
 according to SCHEMA."
   (etypecase schema
