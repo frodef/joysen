@@ -92,7 +92,8 @@ space, NIL denotes no space.")
 (defvar *json-default-schema*
   '((string json-string)
     (integer json-integer)
-    (real json-decimal))
+    (real json-decimal)
+    (null json-object))
   "In explicit mode: The schema ([(type schema)]*) to use by
 JOYSEN:ENCODE when a NIL schema is provided.
 
@@ -159,7 +160,7 @@ mode. Any character that won't otherwise exist in the output.")
   (if *json-implicit-mode*
       (format stream "No implicit JSON encoding of value ~S."
 	      (json-unknown-value object))
-      (format stream "Unable to encode value ~S in current schema ~S~@[: ~A~]"
+      (format stream "Joysen unable to encode value ~S in current schema ~S~@[: ~A~]"
 	      (json-unknown-value object)
 	      (json-unknown-value-schema object)
 	      (format-json-trace)))
@@ -396,8 +397,9 @@ e.g. JSON-OBJECT."
 
 (defun format-json-trace (&optional (trace *json-encode-trace*))
   (when trace
-    (let ((*print-length* 4)
-	  (*print-level* 1)
+    (let ((*print-length* 5)
+	  (*print-circle* nil)
+	  (*print-level* 2)
 	  (*print-escape* t))
       (format nil "~{~W[~S]~^ -> ~}" (reverse trace)))))
 
