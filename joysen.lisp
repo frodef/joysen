@@ -425,7 +425,31 @@ values are formatted to the optional ELEMENT-SCHEMA."
 (defun json-string (value)
   "VALUE is printed into a string. The value NIL designates the empty
 string."
-  (format nil "~C~A~C" *json-quote* (or value "") *json-quote*))
+  (with-output-to-string (stream)
+    (write-char *json-quote* stream)
+    (when value
+      (loop for c across value
+	    do (case c
+		 ((#\" #\\ #\/)
+		  (write-char #\\ stream)
+		  (write-char c stream))
+		 ((#\newline)
+		  (write-char #\\ stream)
+		  (write-char #\n stream))
+		 ((#\backspace)
+		  (write-char #\\ stream)
+		  (write-char #\b stream))
+		 ((#\formfeed)
+		  (write-char #\\ stream)
+		  (write-char #\f stream))
+		 ((#\return)
+		  (write-char #\\ stream)
+		  (write-char #\r stream))
+		 ((#\tab)
+		  (write-char #\\ stream)
+		  (write-char #\t stream))
+		 (t (write-char c stream)))))
+    (write-char *json-quote* stream)))
 
 (defun json-decimal (value &optional (precision 2))
   "Format VALUE as a decimal with PRECISION."
