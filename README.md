@@ -118,14 +118,14 @@ doesn't correspond to any particular lisp objects/values.
 	> (princ
         (with-implicit-json (:keyword :camel)
           (json-object
-            (list :bar (getf *example* :bar)
+            (list :bar (json-bool (getf *example* :bar))
                   :foo-zap (getf *example* :foo)))))
 	  
 Output:
 
     {
-        "bar": true
-        "fooZap": 42,
+        "bar": true,
+        "fooZap": 42
     }
 
 In this example, the `json-object` form will output the JSON object
