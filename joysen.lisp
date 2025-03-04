@@ -36,12 +36,12 @@
 ;;;;   calls to Joysen encoder functions or directly to (JSON)
 ;;;;   strings.
 ;;;;
-;;;;   Normal mode is useful for encoding values used otherwise in
+b;;;;   Normal mode is useful for encoding values used otherwise in
 ;;;;   lisp code, and to give those a JSON representation.
 ;;;;
 ;;;;   Usage: (JOYSEN:ENCODE <value> <schema>)
 ;;;;   Example: (encode (list :foo-bar 42)
-;;;;                          '(json-object :foo-bar json-integer)
+;;;;                    '(json-object :foo-bar json-integer)
 ;;;;                    :keyword :camel)
 ;;;;
 ;;;; Implicit mode:
@@ -428,7 +428,7 @@ string."
   (with-output-to-string (stream)
     (write-char *json-quote* stream)
     (when value
-      (loop for c across value
+      (loop for c across (string value)
 	    do (case c
 		 ((#\" #\\ #\/)
 		  (write-char #\\ stream)
