@@ -111,6 +111,8 @@ mode. Any character that won't otherwise exist in the output.")
   (ecase *json-keyword-mode*
     (:camel
      (str:camel-case name))
+    (:snake
+     (str:snake-case name))
     (:upcase
      (string-upcase name))
     (:downcase
